@@ -90,7 +90,7 @@ int main(void) {
           active_chunks[i] == 0 ? DARKGRAY: GRAY);
 
       chunk_x += 1;
-      if (chunk_x == 10) {
+      if (chunk_x == 20) {
         chunk_y += 1;
         chunk_x = 0;
       }
