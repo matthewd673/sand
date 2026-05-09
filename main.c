@@ -1,25 +1,15 @@
 #include <stdio.h>
 #include "raylib.h"
 #include "world.h"
+#include "int_camera.h"
 
-typedef struct IntCamera {
-  int x;
-  int y;
-  int width;
-  int height;
-  int half_width;
-  int half_height;
-} IntCamera;
+const int CAMERA_SPEED = 4;
 
 int main(void) {
-  // Make world
-  const int world_width = 1600;
-  const int world_height = 800;
-
-  World *world = makeWorld(world_width, world_height);
+  World *world = makeWorld();
 
   // Raylib window
-  const int window_width = 1600;
+  const int window_width = 800;
   const int window_height = 800;
 
   InitWindow(window_width, window_height, "sand");
@@ -30,92 +20,81 @@ int main(void) {
   char frame_time_str[32];
   char camera_str[32];
 
-  IntCamera camera = {
-    .x = world_width / 2,
-    .y = world_height / 2,
-    .width = window_width,
-    .height = window_height,
-    .half_width = window_width / 2,
-    .half_height = window_height / 2,
-  };
+  IntCamera *camera = makeIntCamera(window_width, window_height);
 
   while (!WindowShouldClose()) {
     // Input
+    int mouse_world_x = screenToWorldX(camera, GetMouseX());
+    int mouse_world_y = screenToWorldY(camera, GetMouseY());
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) &&
-        worldInBounds(world, GetMouseX(), GetMouseY())) {
-      worldSet(world, GetMouseX(), GetMouseY(), 1);
+        worldInBounds(world, mouse_world_x, mouse_world_y)) {
+      worldSet(world, mouse_world_x, mouse_world_y, 1);
     }
 
     if (IsKeyDown(KEY_LEFT)) {
-      camera.x -= 1;
+      intCameraMove(camera, -CAMERA_SPEED, 0);
     }
     if (IsKeyDown(KEY_RIGHT)) {
-      camera.x += 1;
+      intCameraMove(camera, CAMERA_SPEED, 0);
     }
     if (IsKeyDown(KEY_UP)) {
-      camera.y -= 1;
+      intCameraMove(camera, 0, -CAMERA_SPEED);
     }
     if (IsKeyDown(KEY_DOWN)) {
-      camera.y += 1;
+      intCameraMove(camera, 0, CAMERA_SPEED);
     }
 
     // Update
-    for (int y = world_height - 1; y > 0; y -= 1) {
-      for (int x = 0; x < world_width; x += 1) {
-        if (worldGet(world, x, y) != EMPTY) {
-          continue;
-        }
-
-        // Sand above, pull down
-        if (worldGet(world, x, y - 1) == SAND) {
-          worldSet(world, x, y, SAND);
-          worldSet(world, x, y - 1, EMPTY);
-          continue;
-        }
-
-        // Sand piling from the left
-        if (x > 0 &&
-            worldGet(world, x - 1, y) != EMPTY &&
-            worldGet(world, x - 1, y - 1) != EMPTY) {
-          worldSet(world, x - 1, y - 1, EMPTY);
-          worldSet(world, x, y, SAND);
-          continue;
-        }
-
-        // Sand piling from the right
-        if (x < world_width - 1 &&
-            worldGet(world, x + 1, y) != EMPTY &&
-            worldGet(world, x + 1, y - 1) != EMPTY) {
-          worldSet(world, x + 1, y - 1, EMPTY);
-          worldSet(world, x, y, SAND);
-          continue;
-        }
-      }
-    }
+    worldTick(world);
 
     // Draw
     BeginDrawing();
     ClearBackground(BLACK);
 
-    for (int y = 0; y < camera.height; y += 1) {
-      for (int x = 0; x < camera.width; x += 1) {
-        if (!worldInBounds(world, x, y)) {
-          DrawPixel(x, y, GRAY);
+    for (int screen_y = 0; screen_y < window_height; screen_y += 1) {
+      for (int screen_x = 0; screen_x < window_width; screen_x += 1) {
+        int world_x = screenToWorldX(camera, screen_x);
+        int world_y = screenToWorldY(camera, screen_y);
+
+        if (!worldInBounds(world, world_x, world_y)) {
           continue;
         }
 
-        if (worldGet(world, x, y) == SAND) {
-          DrawPixel(x, y, YELLOW);
+        if (worldGet(world, world_x, world_y) == SAND) {
+          DrawPixel(screen_x, screen_y, YELLOW);
         }
       }
     }
 
     sprintf(fps_str, "FPS: %d", GetFPS());
-    sprintf(frame_time_str, "Frame time: %.4f", GetFrameTime());
-    sprintf(camera_str, "Camera: %d, %d", camera.x, camera.y);
+    sprintf(frame_time_str, "Frame time: %.2fms", GetFrameTime() * 1000);
+    sprintf(
+        camera_str,
+        "Camera: %d, %d",
+        intCameraGetX(camera),
+        intCameraGetY(camera));
     DrawText(fps_str, 0, 0, 8, WHITE);
     DrawText(frame_time_str, 0, 8, 8, WHITE);
     DrawText(camera_str, 0, 16, 8, WHITE);
+
+    // TODO: Hard-coded assuming we know world chunk size
+    int *active_chunks = worldGetActiveChunks(world);
+    int chunk_y = 0;
+    int chunk_x = 0;
+    for (int i = 0; i < 100; i += 1) {
+      DrawRectangle(
+          chunk_x * 10,
+          32 + chunk_y * 10,
+          10,
+          10,
+          active_chunks[i] == 0 ? DARKGRAY: GRAY);
+
+      chunk_x += 1;
+      if (chunk_x == 10) {
+        chunk_y += 1;
+        chunk_x = 0;
+      }
+    }
 
     EndDrawing();
   }
@@ -123,6 +102,7 @@ int main(void) {
   // Cleanup
   CloseWindow();
   freeWorld(world);
+  freeIntCamera(camera);
 
   return 0;
 }
