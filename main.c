@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "raylib.h"
 #include "world.h"
+#include "cell.h"
 #include "int_camera.h"
 
 const int CAMERA_SPEED = 4;
@@ -19,6 +20,8 @@ int main(void) {
   char fps_str[32];
   char frame_time_str[32];
   char camera_str[32];
+  char mouse_pos_str[32];
+  char hover_str[32];
 
   IntCamera *camera = makeIntCamera(window_width, window_height);
 
@@ -66,6 +69,7 @@ int main(void) {
       }
     }
 
+    // Metrics
     sprintf(fps_str, "FPS: %d", GetFPS());
     sprintf(frame_time_str, "Frame time: %.2fms", GetFrameTime() * 1000);
     sprintf(
@@ -73,9 +77,21 @@ int main(void) {
         "Camera: %d, %d",
         intCameraGetX(camera),
         intCameraGetY(camera));
+    sprintf(mouse_pos_str, "Mouse: %d, %d", mouse_world_x, mouse_world_y);
+    if (worldInBounds(world, mouse_world_x, mouse_world_y)) {
+      sprintf(
+          hover_str,
+          "Hovering on: %s",
+          cellGetName(worldGet(world, mouse_world_x, mouse_world_y)));
+    } else {
+      sprintf(hover_str, "Out of bounds");
+    }
+
     DrawText(fps_str, 0, 0, 8, WHITE);
     DrawText(frame_time_str, 0, 8, 8, WHITE);
     DrawText(camera_str, 0, 16, 8, WHITE);
+    DrawText(mouse_pos_str, 0, 24, 8, WHITE);
+    DrawText(hover_str, 0, 32, 8, WHITE);
 
     // TODO: Hard-coded assuming we know world chunk size
     int *active_chunks = worldGetActiveChunks(world);
@@ -84,7 +100,7 @@ int main(void) {
     for (int i = 0; i < 100; i += 1) {
       DrawRectangle(
           chunk_x * 10,
-          32 + chunk_y * 10,
+          64 + chunk_y * 10,
           10,
           10,
           active_chunks[i] == 0 ? DARKGRAY: GRAY);
