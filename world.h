@@ -1,6 +1,8 @@
 #ifndef WORLD_H
 #define WORLD_H
 
+#include <stdbool.h>
+
 typedef struct World World;
 
 World *makeWorld();
@@ -10,7 +12,7 @@ void worldSet(World *world, int x, int y, int kind);
 int worldGet(World *world, int x, int y);
 int worldInBounds(World *world, int x, int y);
 
-int *worldGetActiveChunks(World *world);
+bool *worldGetActiveChunks(World *world);
 
 void worldTick(World *world);
 
